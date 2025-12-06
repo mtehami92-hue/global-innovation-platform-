@@ -1,0 +1,10 @@
+@article{altehami2025golden,
+  title={Complete Suppression of Seismic Aliasing via Golden Spiral Arrays},
+  author={Al-Tehami, Mohammed Hassan},
+  journal={Geophysics},
+  volume={90},
+  number={4},
+  pages={WA123--WA135},
+  year={2025},
+  publisher={Society of Exploration Geophysicists}
+}

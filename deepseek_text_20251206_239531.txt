@@ -1,0 +1,248 @@
+
+### **الخطوة 5: إنشاء ملفات الكود الأساسية**
+
+**إنشاء ملف `code/python/golden_spiral.py`:**
+```python
+"""
+Golden Spiral Array Generator for Seismic Acquisition
+Author: Mohammed Hassan Al-Tehami
+Date: December 2025
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import ricker, convolve
+import json
+from typing import Tuple, List
+
+class GoldenSeismicArray:
+    """
+    Implementation of Golden Spiral seismic array geometry
+    """
+    
+    def __init__(self, N: int = 60, R_max: float = 1500.0):
+        """
+        Initialize Golden Spiral array
+        
+        Parameters:
+        -----------
+        N : int
+            Number of sensors
+        R_max : float
+            Maximum radius in meters
+        """
+        self.N = N
+        self.R_max = R_max
+        self.phi = (1 + np.sqrt(5)) / 2  # Golden ratio
+        self.golden_angle = 2 * np.pi / (self.phi ** 2)
+        
+    def generate_coordinates(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Generate Golden Spiral coordinates
+        
+        Returns:
+        --------
+        x, y : arrays of sensor coordinates
+        """
+        n = np.arange(1, self.N + 1)
+        angles = n * self.golden_angle
+        radii = self.R_max * np.sqrt(n / self.N)
+        
+        x = radii * np.cos(angles)
+        y = radii * np.sin(angles)
+        
+        return x, y
+    
+    def calculate_array_response(self, frequency: float = 25.0, 
+                                 velocity: float = 2500.0) -> dict:
+        """
+        Calculate array response function
+        
+        Parameters:
+        -----------
+        frequency : float
+            Dominant frequency in Hz
+        velocity : float
+            Seismic wave velocity in m/s
+        
+        Returns:
+        --------
+        response : dict
+            Array response metrics
+        """
+        wavelength = velocity / frequency
+        x, y = self.generate_coordinates()
+        
+        # Calculate minimum and maximum spacings
+        positions = np.column_stack((x, y))
+        distances = []
+        for i in range(len(positions)):
+            for j in range(i+1, len(positions)):
+                dist = np.linalg.norm(positions[i] - positions[j])
+                distances.append(dist)
+        
+        distances = np.array(distances)
+        
+        response = {
+            'min_spacing': np.min(distances),
+            'max_spacing': np.max(distances),
+            'mean_spacing': np.mean(distances),
+            'spacing_relative_to_wavelength': {
+                'min': np.min(distances) / wavelength,
+                'max': np.max(distances) / wavelength,
+                'mean': np.mean(distances) / wavelength
+            },
+            'angular_coverage': 2 * np.pi,
+            'spatial_fill_ratio': self.calculate_fill_ratio()
+        }
+        
+        return response
+    
+    def calculate_fill_ratio(self) -> float:
+        """
+        Calculate how well the array fills the circular area
+        
+        Returns:
+        --------
+        fill_ratio : float
+            Ratio between 0 and 1
+        """
+        x, y = self.generate_coordinates()
+        area_circle = np.pi * self.R_max ** 2
+        
+        # Estimate covered area using convex hull
+        from scipy.spatial import ConvexHull
+        points = np.column_stack((x, y))
+        if len(points) > 2:
+            hull = ConvexHull(points)
+            area_hull = hull.volume  # For 2D, volume is area
+            fill_ratio = area_hull / area_circle
+        else:
+            fill_ratio = 0.0
+            
+        return fill_ratio
+    
+    def plot_array(self, save_path: str = None):
+        """
+        Plot the array layout
+        
+        Parameters:
+        -----------
+        save_path : str
+            Path to save the figure
+        """
+        x, y = self.generate_coordinates()
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # Plot array
+        ax.scatter(x, y, c='blue', s=100, alpha=0.7, 
+                  label=f'Golden Spiral (N={self.N})')
+        
+        # Plot circle boundary
+        circle = plt.Circle((0, 0), self.R_max, fill=False, 
+                           linestyle='--', alpha=0.5, color='red')
+        ax.add_patch(circle)
+        
+        ax.set_xlabel('X Position (m)', fontsize=12)
+        ax.set_ylabel('Y Position (m)', fontsize=12)
+        ax.set_title('Golden Spiral Seismic Array Layout', fontsize=14)
+        ax.grid(True, alpha=0.3)
+        ax.axis('equal')
+        ax.legend()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Figure saved to {save_path}")
+        
+        return fig, ax
+
+def generate_grid_array(N: int = 64, L: float = 1500.0) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generate conventional grid array for comparison
+    
+    Parameters:
+    -----------
+    N : int
+        Approximate number of sensors (will be adjusted to perfect square)
+    L : float
+        Survey area half-length
+    
+    Returns:
+    --------
+    x, y : arrays of sensor coordinates
+    """
+    # Find nearest perfect square
+    n_side = int(np.sqrt(N))
+    actual_N = n_side ** 2
+    
+    # Create grid
+    x_grid = np.linspace(-L, L, n_side)
+    y_grid = np.linspace(-L, L, n_side)
+    
+    X, Y = np.meshgrid(x_grid, y_grid)
+    x = X.flatten()
+    y = Y.flatten()
+    
+    return x, y
+
+def compare_arrays():
+    """
+    Compare Golden Spiral vs. Grid arrays
+    """
+    # Generate arrays
+    golden = GoldenSeismicArray(N=60, R_max=1500)
+    x_gold, y_gold = golden.generate_coordinates()
+    
+    x_grid, y_grid = generate_grid_array(N=64, L=1500)
+    
+    # Calculate metrics
+    golden_response = golden.calculate_array_response()
+    
+    # Plot comparison
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Grid array
+    axes[0].scatter(x_grid, y_grid, c='red', s=80, alpha=0.7)
+    axes[0].set_xlabel('X (m)')
+    axes[0].set_ylabel('Y (m)')
+    axes[0].set_title(f'Grid Array (N={len(x_grid)})')
+    axes[0].grid(True, alpha=0.3)
+    axes[0].axis('equal')
+    
+    # Golden spiral array
+    axes[1].scatter(x_gold, y_gold, c='blue', s=80, alpha=0.7)
+    circle = plt.Circle((0, 0), 1500, fill=False, linestyle='--', alpha=0.5, color='red')
+    axes[1].add_patch(circle)
+    axes[1].set_xlabel('X (m)')
+    axes[1].set_ylabel('Y (m)')
+    axes[1].set_title(f'Golden Spiral Array (N={len(x_gold)})')
+    axes[1].grid(True, alpha=0.3)
+    axes[1].axis('equal')
+    
+    plt.suptitle('Comparison of Seismic Array Geometries', fontsize=16)
+    plt.tight_layout()
+    plt.savefig('array_comparison.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    # Print comparison
+    print("="*50)
+    print("ARRAY COMPARISON RESULTS")
+    print("="*50)
+    print(f"\nGolden Spiral Array:")
+    print(f"  Number of sensors: {len(x_gold)}")
+    print(f"  Minimum spacing: {golden_response['min_spacing']:.1f} m")
+    print(f"  Maximum spacing: {golden_response['max_spacing']:.1f} m")
+    print(f"  Fill ratio: {golden_response['spatial_fill_ratio']:.3f}")
+    
+    return golden_response
+
+if __name__ == "__main__":
+    # Run comparison
+    results = compare_arrays()
+    
+    # Save results to JSON
+    with open('array_analysis.json', 'w') as f:
+        json.dump(results, f, indent=2)
+    
+    print("\nAnalysis complete. Results saved to 'array_analysis.json'")

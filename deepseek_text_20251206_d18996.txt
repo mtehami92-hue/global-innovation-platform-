@@ -1,0 +1,14 @@
+
+## 🚀 **Quick Start**
+
+### **Python Installation**
+```bash
+# 1. Clone the repository
+git clone https://github.com/mtehami/golden-seismic-arrays.git
+cd golden-seismic-arrays
+
+# 2. Install dependencies
+pip install -r code/python/requirements.txt
+
+# 3. Run basic example
+python code/python/golden_spiral.py
